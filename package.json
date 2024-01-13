@@ -1,0 +1,49 @@
+{
+  "name": "run-test-files",
+  "version": "1.0.0",
+  "description": "runtf is a command line tool for running script files (tests) with a post name like '.test.ts' (default: '.tf.ts')",
+  "main": "bin/index.js",
+  "types": "bin/index.d.ts",
+  "type": "module",
+  "bin": {
+    "runtf": "bin/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node bin/index.js",
+    "test": "npm run build && npm run start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alfnielsen/run-test-files.git"
+  },
+  "keywords": [
+    "runtf",
+    "test",
+    "testing",
+    "run",
+    "files",
+    "test-files",
+    "testfiles",
+    "test files",
+    "run test files",
+    "run testfiles",
+    "run test files"
+  ],
+  "author": "alfnielsen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/alfnielsen/run-test-files/issues"
+  },
+  "homepage": "https://github.com/alfnielsen/run-test-files#readme",
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.11.0",
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "@types/glob": "^8.1.0",
+    "glob": "^10.3.10",
+    "inquirer": "^9.2.12"
+  }
+}
