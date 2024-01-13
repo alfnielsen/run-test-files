@@ -174,9 +174,9 @@ export async function runTest() {
   console.log("Running test: " + test.name)
   console.log("─".repeat(test.name.length + 20))
 
-  let isTsFile = /\.ts$/.test(test.fullPath)
+  let isTsFile = !runWithBun && /\.ts$/.test(test.fullPath)
   let filePath = test.fullPath
-  if (!runWithBun && isTsFile) {
+  if (isTsFile) {
     if (configPath === "") {
       console.error("tsconfig.json not found at: " + configPath)
       return
