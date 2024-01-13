@@ -158,9 +158,9 @@ export async function runTest() {
     console.log("\x1Bc");
     console.log("Running test: " + test.name);
     console.log("─".repeat(test.name.length + 20));
-    let isTsFile = !runWithBun && /\.ts$/.test(test.fullPath);
+    let isTsFile = /\.ts$/.test(test.fullPath);
     let filePath = test.fullPath;
-    if (isTsFile) {
+    if (!runWithBun && isTsFile) {
         if (configPath === "") {
             console.error("tsconfig.json not found at: " + configPath);
             return;
@@ -188,7 +188,7 @@ export async function runTest() {
             }
         });
     });
-    if (isTsFile) {
+    if (!runWithBun && isTsFile) {
         fs.unlinkSync(filePath);
     }
     console.log(" ");

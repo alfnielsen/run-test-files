@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node bin/index.js",
+    "startbun": "node bin/index.js --bun",
     "test": "npm run build && npm run start",
     "install-cli": "npm install -g ."
   },
