@@ -7,23 +7,35 @@ import { spawn, execSync } from "child_process";
 export async function runTest() {
     // clear terminal+history
     console.log("\x1Bc");
-    const args = process.argv.slice(2);
+    const processArgs = process.argv.slice(2).join(" ");
+    // fix args with spaces in them
+    const regex = /"[^"]+"|'[^']+'|\S+/g;
+    const args = [...(processArgs.match(regex) || [])];
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg.startsWith('"') && arg.endsWith('"')) {
+            args[i] = arg.slice(1, -1);
+        }
+    }
     const help = args.findIndex(x => x === "--help" || x === "-h");
     if (help >= 0) {
         console.log(`Usage: tf [options]
   Options:
     --help, -h                show this help
     --dot                     include dot files
+    --bun                     run test with Bun (instead of node)
 
   Options with values: --[option] value
     --postfix, -p             postfix to search for fx testfile.tf.ts (default tf)
     --cwd, -c                 root folder to search from  (default: process.cwd())
-    --last, -l, -save, -s     save last test to file (default: .last-tf)
+    --save, -s                save last test to file (default: .last-tf)
     --depth, -d               max depth of folder to search (default: 10 max: 30)
+    --config, -c              path to tsconfig.json (default: tsconfig.json)
 `);
         return;
     }
     const includeDot = args.includes("--dot");
+    const runWithBun = args.includes("--bun");
     const postFixIndex = args.findIndex(x => x === "--postfix" || x === "-p");
     const depthIndex = args.findIndex(x => x === "--depth" || x === "-d");
     let depth = 10;
@@ -36,7 +48,7 @@ export async function runTest() {
             }
         }
     }
-    const rootIndex = args.findIndex(x => x === "--root" || x === "-r" || x === "--cwd" || x === "-c");
+    const rootIndex = args.findIndex(x => x === "--cwd" || x === "-c");
     if (rootIndex >= 0 && rootIndex + 1 < args.length) {
         process.chdir(args[rootIndex + 1]);
     }
@@ -45,7 +57,20 @@ export async function runTest() {
     if (postFixIndex >= 0 && postFixIndex + 1 < args.length) {
         postfix = args[postFixIndex + 1];
     }
-    const saveLastIndex = args.findIndex(x => x === "--last" || x === "-l" || x === "--last-test" || x === "-lt" || x === "-save" || x === "-s");
+    const configIndex = args.findIndex(x => x === "--config" || x === "-c");
+    let configPath = join(cwd, "tsconfig.json");
+    if (configIndex >= 0 && configIndex + 1 < args.length) {
+        const newConfigPath = args[configIndex + 1];
+        if (!fs.existsSync(newConfigPath)) {
+            console.error("tsconfig.json not found at: " + newConfigPath);
+            return;
+        }
+    }
+    else if (!fs.existsSync(configPath)) {
+        //console.error("tsconfig.json not found at: " + configPath)
+        configPath = "";
+    }
+    const saveLastIndex = args.findIndex(x => x === "-save" || x === "-s");
     let lastTestFilePath = "";
     let lastTestName = "";
     if (saveLastIndex >= 0) {
@@ -60,10 +85,10 @@ export async function runTest() {
     if (lastTestFilePath && fs.existsSync(lastTestFilePath)) {
         lastTestName = fs.readFileSync(lastTestFilePath, "utf8");
     }
-    let max = depth;
     const postfixRegex = new RegExp(`\\.${postfix}\\.(js|ts)$`);
-    function walk(dir, filelist = []) {
+    function walk(dir, filelist = [], max = depth) {
         if (max-- < 0) {
+            console.log("max reached at" + dir);
             throw new Error("max reached");
         }
         const items = fs.readdirSync(dir, { withFileTypes: true });
@@ -82,11 +107,14 @@ export async function runTest() {
             if (!includeDot && /^\./.test(subDir.name)) {
                 continue;
             }
-            walk(join(dir, subDir.name), filelist);
+            walk(join(dir, subDir.name), filelist, max);
         }
         return filelist;
     }
+    console.log("Searching for tests...");
+    console.log("cwd: " + cwd);
     const filePaths = walk(cwd);
+    console.log("\x1Bc");
     const tests = filePaths.map(x => {
         const split = x.split("/");
         const name = split[split.length - 1].replace(postfixRegex, "");
@@ -111,7 +139,7 @@ export async function runTest() {
     }
     const selected = await inquirer.prompt([
         {
-            message: "Select a test to run",
+            message: "Select a test to run:",
             name: "action",
             type: "list",
             loop: false,
@@ -127,33 +155,26 @@ export async function runTest() {
         fs.writeFileSync(lastTestFilePath, test.name, "utf8");
     }
     // run test
-    // if (testProcess.stdout) {
-    //   testProcess.stdout.on('data', data => {
-    //     stdout.append(data)
-    //   })
-    // }
-    // if (child.stderr) {
-    //   child.stderr.on('data', data => {
-    //     stderr.append(data)
-    //   })
-    // }
-    // clear terminal+history
     console.log("\x1Bc");
     console.log("Running test: " + test.name);
     console.log("─".repeat(test.name.length + 20));
     let isTsFile = /\.ts$/.test(test.fullPath);
     let filePath = test.fullPath;
-    if (isTsFile) {
+    if (!runWithBun && isTsFile) {
+        if (configPath === "") {
+            console.error("tsconfig.json not found at: " + configPath);
+            return;
+        }
         filePath = filePath.replace(/\.ts$/, ".js"); // remove postfix
         console.log("Compiling test: " + test.name + "...");
         // console.log("To file: " + filePath)
-        const cmd = `npx tsc '${test.fullPath}' --target esnext --module nodenext --noEmitOnError --skipLibCheck`;
+        const cmd = `tsc '${test.fullPath}'`;
         // console.log("cmd: " + cmd)
         console.log("─".repeat(test.name.length + 20));
         execSync(cmd, { stdio: "inherit" });
     }
-    await new Promise((resolve, reject) => {
-        let testProcess = spawn("node", [filePath], {
+    await new Promise(async (resolve, reject) => {
+        let testProcess = spawn(runWithBun ? "bun" : "node", [filePath], {
             stdio: "inherit",
         });
         testProcess.on("error", reject);
