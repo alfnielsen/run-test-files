@@ -1,4 +1,4 @@
-import { glob } from "glob"
+#! /usr/bin/env node
 import { join } from "path"
 import fs from "fs"
 import inquirer from "inquirer"
@@ -20,18 +20,28 @@ export async function runTest() {
   Options:
     --help, -h                show this help
     --dot                     include dot files
-    --nocase                  case insensitive (default on Windos and macOs - only use on case insensitive file systems)
 
   Options with values: --[option] value
     --postfix, -p             postfix to search for fx testfile.tf.ts (default tf)
     --cwd, -c                 root folder to search from  (default: process.cwd())
     --last, -l, -save, -s     save last test to file (default: .last-tf)
+    --depth, -d               max depth of folder to search (default: 10 max: 30)
 `)
     return
   }
   const includeDot = args.includes("--dot")
-  const ignoreCase = args.includes("--nocase")
   const postFixIndex = args.findIndex(x => x === "--postfix" || x === "-p")
+  const depthIndex = args.findIndex(x => x === "--depth" || x === "-d")
+  let depth = 10
+  if (depthIndex >= 0 && depthIndex + 1 < args.length) {
+    const depthValue = parseInt(args[depthIndex + 1])
+    if (!isNaN(depthValue)) {
+      depth = depthValue
+      if (depth > 30) {
+        depth = 30
+      }
+    }
+  }
   const rootIndex = args.findIndex(x => x === "--root" || x === "-r" || x === "--cwd" || x === "-c")
   if (rootIndex >= 0 && rootIndex + 1 < args.length) {
     process.chdir(args[rootIndex + 1])
@@ -59,16 +69,35 @@ export async function runTest() {
     lastTestName = fs.readFileSync(lastTestFilePath, "utf8")
   }
 
-  const pattern = `**/*.${postfix}.{js,ts}`
+  let max = depth
   const postfixRegex = new RegExp(`\\.${postfix}\\.(js|ts)$`)
-  const filePaths = await glob(pattern, {
-    ignore: ["node_modules/**"],
-    absolute: true,
-    cwd,
-    nodir: true,
-    dot: includeDot,
-    nocase: ignoreCase,
-  })
+  function walk(dir: string, filelist: string[] = []) {
+    if (max-- < 0) {
+      throw new Error("max reached")
+    }
+    const items = fs.readdirSync(dir, { withFileTypes: true })
+    const dirs = items.filter(x => x.isDirectory())
+    const files = items.filter(x => x.isFile())
+
+    for (const file of files) {
+      if (postfixRegex.test(file.name)) {
+        filelist.push(join(dir, file.name))
+      }
+    }
+    for (const subDir of dirs) {
+      // ignore node_modules
+      if (subDir.name === "node_modules") {
+        continue
+      }
+      if (!includeDot && /^\./.test(subDir.name)) {
+        continue
+      }
+      walk(join(dir, subDir.name), filelist)
+    }
+
+    return filelist
+  }
+  const filePaths = walk(cwd)
 
   const tests = filePaths.map(x => {
     const split = x.split("/")
