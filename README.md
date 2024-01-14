@@ -89,18 +89,21 @@ or use the default `.last-tf`
 
 ## Run with Bun
 
-You can run the test with [Bun](https://bun.sh/) \
-_(Use option: `--bun`)_
+You can run the test with [Bun](https://bun.sh/)
 
 Which have native support for typescript. \
 _(No need to compile to javascript first)_
+
+You must have `bun` must be installed globally.
+
+Use option: `--bun`
 
 > runtf --bun
 
 ## TypeScript
 
 `runtf` can run `typescript files`, \
-if typescript is install and a root tsconfig.json file exist. \
+if typescript is installed and a root tsconfig.json file exist.
 
 Use the `--config` option to specify another tsconfig.json file
 
@@ -110,7 +113,7 @@ or
 
 > runtf --config ../
 
-`runtf` will compile the typescript files to javascript before running it. \
+`runtf` will compile the typescript files to javascript before running it.
 
-The js file name will have the same name, with ts replaced wioth js \
+The js file name will have the same name, with ts replaced with js \
 and will be delete after running it.
