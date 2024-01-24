@@ -28,7 +28,7 @@ const config = collectOptions(args, ["--config", "-c"], true)
 const saveLast = collectOptions(args, ["-save", "-s"], true, ".last-tf")
 const saveNumber = collectOptions(args, ["-savenumber", "-sn"], true, 1, true) as number
 const newCwd = collectOptions(args, ["--cwd", "-c"], true)
-const namePath = true // collectOptions(args, ["--namepath", "-np"], true)
+const namePath = collectOptions(args, ["--namepath", "-np"], true)
 
 // variables
 let cwd = process.cwd()
