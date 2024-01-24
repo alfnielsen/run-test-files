@@ -8,23 +8,27 @@ import { spawn, execSync } from "child_process"
 type Test = {
   fullPath: string
   name: string
+  label: string
 }
 
 // capture options:
 const args = processArgs()
 // debug
-const debug = collectOptions(args, ["--debug"])
-let noRun = collectOptions(args, ["--noRun", "--nr"])
-let noClear = collectOptions(args, ["--noClear", "--nc"])
+const debug = collectOptions(args, ["--debug", "-db"])
+const noRun = collectOptions(args, ["--noRun", "-nr"])
+let noClear = collectOptions(args, ["--noClear", "-nc"])
 // options
 const help = collectOptions(args, ["--help", "-h"])
 const includeDot = collectOptions(args, ["--dot"])
-const runWithBun = collectOptions(args, ["--bun"])
+//@ts-ignore
+const runWithBun = !!globalThis.Bun || collectOptions(args, ["--bun"])
 const postfix = collectOptions(args, ["--postfix", "-p"], true, "tf")
 const depthValue = collectOptions(args, ["--depth"], true, "10", true)
 const config = collectOptions(args, ["--config", "-c"], true)
 const saveLast = collectOptions(args, ["-save", "-s"], true, ".last-tf")
+const saveNumber = collectOptions(args, ["-savenumber", "-sn"], true, 1, true) as number
 const newCwd = collectOptions(args, ["--cwd", "-c"], true)
+const namePath = collectOptions(args, ["--namepath", "-n"], true)
 
 // variables
 let cwd = process.cwd()
@@ -34,10 +38,6 @@ let depth = 10
 // parse options:
 if (debug) {
   noClear = true
-  console.log("--- DEBUG ---")
-  console.log("args: ", args.join(" "))
-  console.log("run from cwd: ", process.cwd())
-  console.log("-------------")
 }
 // depth
 if (typeof depthValue === "number") {
@@ -70,15 +70,26 @@ configPath = resolve(configPath)
 // save last test
 const lastTestFilePath = typeof saveLast === "string" ? join(cwd, saveLast) : ""
 
-const lastTestName =
-  lastTestFilePath && fs.existsSync(lastTestFilePath) ? fs.readFileSync(lastTestFilePath, "utf8") : ""
+const lastTestNames =
+  lastTestFilePath && fs.existsSync(lastTestFilePath)
+    ? fs.readFileSync(lastTestFilePath, "utf8").trim().split("\n")
+    : []
 // postfix
 const postfixRegex = new RegExp(`\\.${postfix}\\.(js|ts)$`)
 
 // debug
 if (debug) {
-  console.log("--- DEBUG Parsed args ---")
-  console.log("args: ", args.join(" "))
+  console.log("")
+  console.log("-------------------------------------------")
+  console.log("------------ DEBUG Parsed args ------------")
+  console.log("-------------------------------------------")
+  console.log("")
+  console.log("run from cwd: ", process.cwd())
+  console.log("")
+  console.log("process args: ", args.join(" "))
+  console.log("")
+  console.log("-----------------------")
+  console.log("")
   console.log("--help: ", help)
   console.log("--noRun: ", noRun)
   console.log("--debug: ", debug)
@@ -92,9 +103,15 @@ if (debug) {
   console.log("--config: ", config)
   console.log("--configPath: ", configPath)
   console.log("--saveLast: ", saveLast)
+  console.log("--saveNumber: ", saveNumber)
+  console.log("--pathName: ", namePath)
+  console.log("")
   console.log("lastTestFilePath: ", lastTestFilePath)
-  console.log("lastTestName: ", lastTestName)
+  console.log("lastTestNames: ", lastTestNames.join(", "))
   console.log("postfixRegex: ", postfixRegex)
+  console.log("")
+  console.log("-------------------------------------------")
+  console.log("")
 }
 
 // async run function
@@ -152,9 +169,14 @@ export async function runTest() {
   const tests = filePaths.map(x => {
     const split = x.split("/")
     const name = split[split.length - 1].replace(postfixRegex, "")
+    let label = name
+    if (namePath) {
+      label = split.slice(0, -1).join(" > ") + " > " + name
+    }
     return {
       fullPath: x,
       name,
+      label,
     } as Test
   })
   // sort tests
@@ -163,14 +185,26 @@ export async function runTest() {
   })
 
   // create select menu
-  const exitNode = { name: "Exit", fullPath: "" } as Test
+  const exitNode = { name: "Exit", label: "Exit", fullPath: "" } as Test
   const choices = [exitNode, new separator("─── ⇓ Select test ⇓ ───"), ...tests.map(x => x.name)]
 
-  if (lastTestName) {
-    const lastTest = tests.find(x => x.name === lastTestName)
-    if (lastTest) {
+  if (lastTestNames.length > 0) {
+    // keep order:
+    const lastTests: Test[] = []
+    for (let lastText of lastTestNames) {
+      const lastTest = tests.find(x => x.name === lastText)
+      if (lastTest) {
+        lastTests.push(lastTest)
+      }
+    }
+    if (lastTests.length > 0) {
       choices.unshift(new separator("──────────────────────────"))
-      choices.unshift(lastTest.name)
+      if (lastTests.length > 1) {
+        choices.unshift(new separator("─── ⇑ Run last test ⇑ ───"))
+      }
+      lastTests.reverse().forEach(x => {
+        choices.unshift(x.label)
+      })
       choices.unshift(new separator("─── ⇓ Run last test ⇓ ───"))
     }
   }
@@ -186,14 +220,25 @@ export async function runTest() {
     },
   ])
   // if exit selected
-  if (selected.action === exitNode.name) {
+  if (selected.action === exitNode.label) {
     return exitNode
   }
   // find test from selected
-  const test = tests.find(x => x.name === selected.action)!
+  const test = tests.find(x => x.label === selected.action)!
   // save last test
   if (lastTestFilePath) {
-    fs.writeFileSync(lastTestFilePath, test.name, "utf8")
+    if (!lastTestNames.includes(test.name)) {
+      lastTestNames.unshift(test.name)
+    } else {
+      // move to top
+      lastTestNames.splice(lastTestNames.indexOf(test.name), 1)
+      lastTestNames.unshift(test.name)
+    }
+    while (lastTestNames.length > saveNumber) {
+      // remove last
+      lastTestNames.pop()
+    }
+    fs.writeFileSync(lastTestFilePath, lastTestNames.join("\n"), "utf8")
   }
   // run test
   if (!noClear) {
@@ -282,19 +327,25 @@ function collectOptions(
 function printHelp() {
   console.log(`Usage: runtf [?options]
   Options:
-    --help, -h                  show this help
-    --dot                       include dot files
-    --bun                       run test with Bun (instead of node)
-    --postfix, -p [postfix]     postfix to search for fx testfile.tf.ts (default tf)
-    --cwd, -c [folder path]     root folder to search from  (default: process.cwd())
-    --save, -s  [?filename]     save last test to file (default: .last-tf)
-    --depth, -d [depth]         max depth of folder to search (default: 10 max: 50)
-    --config, -c [file path]    path to tsconfig.json (default: tsconfig.json)
-    
+    --help, -h                        show this help
+    --dot                             include dot files
+    --bun                             run test with Bun* (instead of node)
+    --postfix, -p     [postfix]       postfix to search for fx testfile.tf.ts (default tf)
+    --cwd, -c         [folder path]   root folder to search from  (default: process.cwd())
+    --save, -s        [?filename]     save last test to file (default: .last-tf)
+    --savenumber, -sn [?number]       number of test save to save last file (default: 1)
+    --depth, -d       [depth]         max depth of folder to search (default: 10 max: 50)
+    --config, -c      [file path]     path to tsconfig.json (default: tsconfig.json)
+    --namepath -n                     include relative path in select name (fx: dir > dir > name)
+
   Debug:
-    --debug                     print debug info (includes --noClear)
-    --noClear, --nc             don't clear terminal before test
-    --noRun, --nr               don't run test (just print debug info)
+    --debug, -db                      print debug info (includes --noClear)
+    --noClear, --nc                   don't clear terminal before test
+    --noRun, --nr                     don't run test (just print debug info)
+  
+  *Bun:
+    if this is run with bun, it will automatically run with bun (--bun)
+
 `)
 }
 

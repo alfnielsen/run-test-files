@@ -51,20 +51,24 @@ This will scan for files with the postfix `.tf.ts` and list them in a select men
 ```
 Usage: runtf [?options]
   Options:
-    --help, -h                  show this help
-    --dot                       include dot files
-    --bun                       run test with Bun (instead of node)
-    --postfix, -p [postfix]     postfix to search for fx testfile.tf.ts (default tf)
-    --cwd, -c [folder path]     root folder to search from  (default: process.cwd())
-    --save, -s  [?filename]     save last test to file (default: .last-tf)
-    --depth, -d [depth]         max depth of folder to search (default: 10 max: 50)
-    --config, -c [file path]    path to tsconfig.json (default: tsconfig.json)
+    --help, -h                        show this help
+    --dot                             include dot files
+    --bun                             run test with Bun* (instead of node)
+    --postfix, -p     [postfix]       postfix to search for fx testfile.tf.ts (default tf)
+    --cwd, -c         [folder path]   root folder to search from  (default: process.cwd())
+    --save, -s        [?filename]     save last test to file (default: .last-tf)
+    --savenumber, -sn [?number]       number of test save to save last file (default: 1)
+    --depth, -d       [depth]         max depth of folder to search (default: 10 max: 50)
+    --config, -c      [file path]     path to tsconfig.json (default: tsconfig.json)
+    --namepath -n                     include relative path in select name (fx: dir > dir > name)
 
   Debug:
-    --debug                     print debug info (includes --noClear)
-    --noClear, --nc             don't clear terminal before test
-    --noRun, --nr               don't run test (just print debug info)
-`)
+    --debug                           print debug info (includes --noClear)
+    --noClear, --nc                   don't clear terminal before test
+    --noRun, --nr                     don't run test (just print debug info)
+
+  *Bun:
+    if this is run with bun, it will automatically run with bun (--bun)
 ```
 
 ## Postfix
@@ -96,7 +100,9 @@ _(No need to compile to javascript first)_
 
 You must have `bun` must be installed globally.
 
-Use option: `--bun`
+If you run the cli with `bun` it will automatically run with bun.
+
+If you run it with `node` it run child process with bun by using `--bun` option
 
 > runtf --bun
 

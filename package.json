@@ -1,6 +1,6 @@
 {
   "name": "run-test-files",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "runtf is a command line tool for running script files (tests) with a post name like '.test.ts' (default: '.tf.ts')",
   "main": "bin/index.js",
   "types": "bin/index.d.ts",
@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node bin/index.js",
-    "startbun": "node bin/index.js --bun",
+    "bun-start": "bun src/index.ts",
     "test": "npm run build && npm run start",
     "install-cli": "npm install -g ."
   },
