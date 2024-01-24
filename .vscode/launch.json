@@ -9,7 +9,7 @@
       "internalConsoleOptions": "openOnFirstSessionStart",
       "request": "launch",
       "name": "bun Debug File",
-      "program": "src/index.ts",
+      "program": "src/index.ts -np",
       "cwd": "${workspaceFolder}",
       "stopOnEntry": true,
       "watchMode": false

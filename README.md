@@ -64,8 +64,8 @@ Usage: runtf [?options]
 
   Debug:
     --debug                           print debug info (includes --noClear)
-    --noClear, --nc                   don't clear terminal before test
-    --noRun, --nr                     don't run test (just print debug info)
+    --noClear, -nc                    don't clear terminal before test
+    --noRun, -nr                      don't run test (just print debug info)
 
   *Bun:
     if this is run with bun, it will automatically run with bun (--bun)

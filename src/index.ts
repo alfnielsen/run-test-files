@@ -28,7 +28,7 @@ const config = collectOptions(args, ["--config", "-c"], true)
 const saveLast = collectOptions(args, ["-save", "-s"], true, ".last-tf")
 const saveNumber = collectOptions(args, ["-savenumber", "-sn"], true, 1, true) as number
 const newCwd = collectOptions(args, ["--cwd", "-c"], true)
-const namePath = collectOptions(args, ["--namepath", "-n"], true)
+const namePath = true // collectOptions(args, ["--namepath", "-np"], true)
 
 // variables
 let cwd = process.cwd()
@@ -171,7 +171,12 @@ export async function runTest() {
     const name = split[split.length - 1].replace(postfixRegex, "")
     let label = name
     if (namePath) {
-      label = split.slice(0, -1).join(" > ") + " > " + name
+      // remove cwd from path
+      const relPathSplit = x
+        .replace(cwd, "")
+        .split("/")
+        .filter(x => x !== "")
+      label = relPathSplit.slice(0, -1).join(" > ") + " > " + name
     }
     return {
       fullPath: x,
@@ -181,12 +186,12 @@ export async function runTest() {
   })
   // sort tests
   tests.sort((a, b) => {
-    return a.name.localeCompare(b.name)
+    return a.label.localeCompare(b.label)
   })
 
   // create select menu
   const exitNode = { name: "Exit", label: "Exit", fullPath: "" } as Test
-  const choices = [exitNode, new separator("─── ⇓ Select test ⇓ ───"), ...tests.map(x => x.name)]
+  const choices = [exitNode, new separator("─── ⇓ Select test ⇓ ───"), ...tests.map(x => x.label)]
 
   if (lastTestNames.length > 0) {
     // keep order:
@@ -336,12 +341,12 @@ function printHelp() {
     --savenumber, -sn [?number]       number of test save to save last file (default: 1)
     --depth, -d       [depth]         max depth of folder to search (default: 10 max: 50)
     --config, -c      [file path]     path to tsconfig.json (default: tsconfig.json)
-    --namepath -n                     include relative path in select name (fx: dir > dir > name)
+    --namepath -np                    include relative path in select name (fx: dir > dir > name)
 
   Debug:
     --debug, -db                      print debug info (includes --noClear)
-    --noClear, --nc                   don't clear terminal before test
-    --noRun, --nr                     don't run test (just print debug info)
+    --noClear, -nc                    don't clear terminal before test
+    --noRun, -nr                      don't run test (just print debug info)
   
   *Bun:
     if this is run with bun, it will automatically run with bun (--bun)
